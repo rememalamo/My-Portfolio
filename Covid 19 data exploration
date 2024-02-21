@@ -1,0 +1,110 @@
+# --In this project, we will be looking at different Covid statistcs, using data through 02/09/2024
+--In the first couple queries, I am just examing the data at a glance
+
+-- Looking at Total Cases vs Total Deaths for each country
+SELECT location, max(total_cases) as all_cases,max(total_deaths) as all_deaths
+FROM `Covid_Statistics.Covid_Deaths`
+WHERE continent is not null
+Group By location
+-- Broken down by year
+SELECT location, Left(cast(date as string),4) as date, max(new_cases) as all_cases,max(new_deaths) as all_deaths
+FROM `Covid_Statistics.Covid_Deaths`
+WHERE continent is not null
+Group By location, Left(cast(date as string),4)
+
+-- Showing total number of infected in the world
+SELECT sum(max_cases) as all_world_cases
+FROM
+  (Select location, max(total_cases) as max_cases
+  FROM `Covid_Statistics.Covid_Deaths`
+  Where continent is not null
+  Group by location)
+
+-- Looking at infection rate in the United States
+Select location, max(population) as US_population, max(total_cases) as US_cases,max(total_cases/population)*100 as percentage_infected
+From `Covid_Statistics.Covid_Deaths`
+Where location= "United States"
+Group By location
+
+--Now, we begin to get more specific and deliberate in our search
+
+--Looking at countries with the highest infection rate compared to its population
+Select location, MAX(total_cases) as highest_infection_count, population,MAX((total_cases/population)*100) as percentage_infected
+From `Covid_Statistics.Covid_Deaths`
+Where continent is not null
+Group By location, population
+Order by percentage_infected desc
+
+-- Showing countries with highest death count
+Select location, MAX(Cast(total_deaths as int)) as total_death_count
+From `Covid_Statistics.Covid_Deaths`
+Where continent is not null
+Group By location, population
+Order By 2 desc
+LIMIT 10
+
+-- Showing continents with the highest death count
+Select continent, MAX(Cast(total_deaths as int)) as total_death_count
+From `Covid_Statistics.Covid_Deaths`
+Where continent is not null
+Group By continent
+Order By total_death_count desc
+
+-- Let's delve a little deeper, specifically into each country in Europe individually.
+-- We are looking for the country with the highest percentage of death based on population.
+Select location, MAX(Cast(total_deaths as int)) as total_death_count, MAX(total_deaths/population)*100 as death_percentage
+From `Covid_Statistics.Covid_Deaths`
+Where continent = "Europe"
+Group By continent, location
+Order By death_percentage desc
+
+-- Let's look a little deeper, and see if infection rate directly correlated to the death percentage
+Select location, MAX(total_cases/population) as infection_rate, MAX(total_deaths/population)*100 as death_percentage
+From `Covid_Statistics.Covid_Deaths`
+Where continent = "Europe"
+Group By location
+Order By death_percentage desc
+-- The results showed that there was no correlation between the infection rate and the death rate of the countries in Europe
+
+-- Let's see which 10 countries had the highest percentage of deaths based on its population
+Select location, Max(total_deaths/population)*100 as death_percentage
+From `Covid_Statistics.Covid_Deaths`
+Where total_deaths is not null
+Group By location
+Order By death_percentage desc
+Limit 10
+-- Peru has the highest rate of death from Covid 
+
+--Looking at total number of vaccinated people in each country
+Select dea.location, MAX(vac.people_vaccinated) as total_country_vaccinations
+From `Covid_Statistics.Covid_Vaccinations` vac
+Join `Covid_Statistics.Covid_Deaths` dea
+  On dea.date = vac.date
+  And dea.location = vac.location
+Where dea.continent is not null
+Group by dea.location
+Order by total_country_vaccinations desc
+
+--Let's now look at what percentage of each country's population was vaccinated
+Select dea.location, dea.population, MAX(vac.people_vaccinated) as total_country_vaccinations, MAX(vac.people_vaccinated/dea.population) as percentage_vaccinated
+From `Covid_Statistics.Covid_Vaccinations` vac
+Join `Covid_Statistics.Covid_Deaths` dea
+  On dea.date = vac.date
+  And dea.location = vac.location
+Where dea.continent is not null
+Group by dea.location, dea.population
+Order by total_country_vaccinations desc
+
+--And now, finally, let's look and see if there was any correlation between the percent of the country being vaccinated and the death rate of the country. We will only be looking at countries with a large population, defined as a country with 75 million or more people
+Select dea.location, dea.population, MAX(vac.people_vaccinated) as total_country_vaccinations, MAX(vac.people_vaccinated/dea.population)*100 as percentage_vaccinated, MAX(dea.total_deaths)as total_fatalities, MAX(dea.total_deaths/dea.population)*100 as death_rate
+From `Covid_Statistics.Covid_Vaccinations` vac
+Join `Covid_Statistics.Covid_Deaths` dea
+  On dea.date = vac.date
+  And dea.location = vac.location
+Where dea.continent is not null
+AND dea.population > 75000000
+Group by dea.location, dea.population
+Order by percentage_vaccinated desc
+--Nigera has a vaccination rate of 43%, while also boasting the lowest death rate of .0014%. For context, the United States had the highest death rate of .34%, while being the 6th most vaccinated country. This shows that vaccination rate and death rate are not correlated, there are more factors at play when it comes to casualites. 
+--In this query, I purposefully selected the columns with the total number of vaccinated and killed, instead of only showing the percentages, so that I could verify that the numbers pulled in my query where accurate and up to date.
+--I first ran this same query with the order by as "death_rate desc" to find the highest and lowest death rate, before sorting by percentage_vaccinated to find the vaccine percentage for the United States for easier ranking in that regard.
