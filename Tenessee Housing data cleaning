@@ -1,0 +1,57 @@
+--In this project, I will display different tecniques used in data cleaning
+
+--First, taking a look at the data set
+Select *
+From `Nashillle_housing.housing`
+
+--I noticed there are a lot of null addresses, so I am going use the parcel ID to force populate the null addresses from other rows where that same parcel ID has the corresponding address.
+-- I am going to join the property addresses with different unique IDs, but with the Parcel IDs,to the correct Parcel IDs, thus populating the NULL field.
+SELECT a.ParcelID, a.PropertyAddress, b.ParcelId, b.PropertyAddress, IFNULL(a.PropertyAddress, b.PropertyAddress)
+From `Nashillle_housing.housing`a
+JOIN `Nashillle_housing.housing`b
+  on a.ParcelID = b.ParcelID
+  AND a.UniqueID_ <> b.UniqueID_
+  Where a.PropertyAddress is null
+--Now that we've generated the correct addresses, let's populate the Null Values
+Update a
+SET PropertyAddress = IFNULL(a.PropertyAddress, b.PropertyAddress)
+From `Nashillle_housing.housing`a
+JOIN `Nashillle_housing.housing`b
+  on a.ParcelID = b.ParcelID
+  AND a.UniqueID_ <> b.UniqueID_
+  Where a.PropertyAddress is null
+
+--Next, we will be seperating the property address fields into seperate colums
+Select PropertyAddress
+FROM `Nashillle_housing.housing`
+--The comma is used as the delimeter between address and city, so we will split them at that point.
+Select 
+(split(PropertyAddress, ','))[safe_ordinal(1)] as address,
+(split(PropertyAddress, ','))[safe_ordinal(2)] as city
+FROM `Nashillle_housing.housing`
+
+--Now, I will be converting all "FALSE" to "No" and "TRUE" to "Yes"
+ SELECT SoldAsVacant,
+  CASE
+    WHEN SoldAsVacant = TRUE THEN 'Yes'
+    WHEN SoldAsVacant = FALSE THEN 'No'
+    ELSE SoldAsVacant
+    END
+FROM `Nashillle_housing.housing` 
+
+--I will now look for any duplicates rows
+WITH RowNumCTE AS(
+SELECT *,
+  ROW_NUMBER() OVER(
+    PARTITION BY ParcelID, PropertyAddress, SalePrice, SaleDate, LegalReference
+    ORDER BY UniqueID_) row_number
+FROM `Nashillle_housing.housing`)
+Select *
+FROM RowNumCTE
+Where row_number >1
+Order by PropertyAddress
+--There are 103 duplicate rows
+
+--Finally, I will delete 3 uneccessary columns
+ALTER TABLE 'Nashillle_housing.housing`
+DROP COLUMN OwnerAddress, TaxDistrict, PropertyAddress
